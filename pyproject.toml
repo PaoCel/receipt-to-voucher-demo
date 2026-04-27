@@ -1,0 +1,36 @@
+[project]
+name = "receipt-to-voucher-demo"
+version = "0.1.0"
+description = "Portfolio demo: receipt image → structured voucher-ready JSON, with human-in-the-loop review."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Paolo Celestini", email = "paolo@celestini.eu" }]
+keywords = ["receipts", "expenses", "ocr", "llm", "openai", "anthropic", "human-in-the-loop"]
+
+dependencies = [
+  "openai>=1.50.0,<2.0",
+  "anthropic>=0.40.0,<1.0",
+  "pydantic>=2.7,<3.0",
+  "python-dotenv>=1.0,<2.0",
+  "Pillow>=10.3,<12.0",
+  "rich>=13.7,<14.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.2,<9.0"]
+
+[project.scripts]
+receipt-to-voucher = "src.pipeline:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
