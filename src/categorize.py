@@ -15,7 +15,7 @@ from typing import Literal, get_args
 
 from src.schema import ExpenseCategory, Receipt
 
-LLMProvider = Literal["openai", "anthropic"]
+LLMProvider = Literal["openai", "anthropic", "mock"]
 
 DEFAULT_OPENAI_MODEL = os.environ.get("OPENAI_TEXT_MODEL", "gpt-4o-mini")
 DEFAULT_ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_TEXT_MODEL", "claude-haiku-4-5-20251001")
@@ -108,6 +108,11 @@ def _classify_anthropic(prompt: str) -> dict:
 
 def categorize(receipt: Receipt, provider: LLMProvider = "openai") -> Receipt:
     """Re-assign category and adjust confidence on a Receipt."""
+    if provider == "mock":
+        from src.mock import mock_categorize
+
+        return mock_categorize(receipt)
+
     prompt = _build_user_prompt(receipt)
     raw = _classify_openai(prompt) if provider == "openai" else _classify_anthropic(prompt)
 

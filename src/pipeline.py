@@ -17,7 +17,7 @@ from src.extract import extract_receipt
 from src.schema import Receipt
 from src.validate import validate
 
-LLMProvider = Literal["openai", "anthropic"]
+LLMProvider = Literal["openai", "anthropic", "mock"]
 SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
 
 console = Console()
@@ -97,9 +97,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--llm-provider",
-        choices=["openai", "anthropic"],
+        choices=["openai", "anthropic", "mock"],
         default="openai",
-        help="LLM provider for extract + categorize.",
+        help="LLM provider for extract + categorize. 'mock' runs offline against shipped fixtures.",
     )
     args = parser.parse_args(argv)
 

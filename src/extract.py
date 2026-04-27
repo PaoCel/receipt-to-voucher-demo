@@ -17,7 +17,7 @@ from pydantic import ValidationError
 
 from src.schema import Receipt
 
-LLMProvider = Literal["openai", "anthropic"]
+LLMProvider = Literal["openai", "anthropic", "mock"]
 
 DEFAULT_OPENAI_MODEL = os.environ.get("OPENAI_VISION_MODEL", "gpt-4o")
 DEFAULT_ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_VISION_MODEL", "claude-sonnet-4-6")
@@ -141,6 +141,11 @@ def extract_receipt(image_path: Path | str, provider: LLMProvider = "openai") ->
     payload.
     """
     image_path = Path(image_path)
+
+    if provider == "mock":
+        from src.mock import mock_extract
+
+        return mock_extract(image_path)
 
     if provider == "openai":
         raw = _extract_with_openai(image_path)

@@ -4,16 +4,46 @@ Extract structured data from receipt images, classify the expense, validate the 
 
 This is the canonical analog of journal-voucher data entry: scattered, photographic source data → structured ledger-grade rows, with the human kept in the loop wherever the model is uncertain.
 
-## Why this exists
+## The point of this demo: AI agent + automation, layered
 
-A small, public, opinionated demo of the shape of work an AI Developer does for a Finance & Records team:
+Two paradigms with different costs and different failure modes are stacked on purpose:
 
-- LLM extraction from images.
-- LLM classification against a documented taxonomy.
-- Deterministic validation as a separate, auditable layer.
-- Human-in-the-loop routing as the default, not the exception.
+| Layer | Paradigm | What it does | What it costs | Where it fails |
+|---|---|---|---|---|
+| `extract.py`, `categorize.py` | **AI agent** | Reads a free-form receipt image, fills a strict schema, picks a category from a documented taxonomy | $$ per call, depends on model + image size | Improvises when unsure → can return wrong but plausible numbers |
+| `validate.py` | **Deterministic automation** | Pure-Python checks: line-item sum vs subtotal, subtotal + tax vs total, date plausibility, merchant sanity, confidence threshold | $0, instant | Only catches what the developer encoded — invisible to anything outside the rules |
+| (orchestrator) | Routes anything below threshold or any failed check to a human queue | — | A human costs more than a machine but exists for the case where neither the AI nor the rules can be trusted alone |
 
-The repo is scoped as a **portfolio piece**. It works on synthetic or personal receipts only. It is not connected to any real ledger or company data, and the data model is deliberately decoupled from any specific ERP.
+This is the position the demo defends: **automation gives guarantees you can audit, AI gives flexibility you cannot pre-script. Use both, layered. Never one without the other on data that matters.**
+
+For a Finance team that owns journal vouchers, the same shape applies: AI extracts the noisy supplier text, automation enforces the deterministic invariants of the GL, the human signs off when either layer flags doubt.
+
+## Why this repo exists
+
+A small, public, opinionated demo of the shape of work an AI Developer does for a Finance & Records team. It is scoped as a **portfolio piece**: synthetic or personal receipts only, not connected to any real ledger, the data model deliberately decoupled from any specific ERP.
+
+## Demo offline in 60 seconds (no API key needed)
+
+The repo ships three fixtures and a `mock` provider so you can see the whole pipeline run without hitting any LLM API. One ricevuta auto-approves, one is caught by the math validator (AI extracted an inconsistent total), one is flagged for human review on confidence.
+
+```bash
+git clone https://github.com/paocel/receipt-to-voucher-demo.git
+cd receipt-to-voucher-demo
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python -m src.pipeline ./fixtures --llm-provider mock --out ./out
+cat out/report.md
+```
+
+Expected output: a batch report with **1 auto-approved · 2 needing review** plus three JSON files in `out/`. Inspect `out/grand_hotel.json` to see the validator's diagnosis (`"review_reason": "subtotal+tax (163.50) ≠ total (155.50)"`) — the AI returned plausible-looking numbers, the deterministic layer caught the inconsistency.
+
+## Tests
+
+```bash
+python -m pytest -q
+```
+
+Twelve unit tests on the deterministic validator. No API key needed.
 
 ## Pipeline
 
@@ -42,31 +72,19 @@ The repo is scoped as a **portfolio piece**. It works on synthetic or personal r
  └─────────────┘   (auto-approved + needs review)
 ```
 
-## Quickstart
+## Real LLM run (with API key)
 
 ```bash
-git clone https://github.com/<your-handle>/receipt-to-voucher-demo.git
-cd receipt-to-voucher-demo
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env  # then edit and set OPENAI_API_KEY
-python -m src.pipeline ./sample_receipts --out ./out
-```
-
-Switch provider:
-
-```bash
+cp .env.example .env  # then edit and set OPENAI_API_KEY (or ANTHROPIC_API_KEY)
+python -m src.pipeline ./sample_receipts --out ./out                     # OpenAI default
 python -m src.pipeline ./sample_receipts --out ./out --llm-provider anthropic
 ```
 
-Run on a single receipt during debugging:
+Drop your own receipt images (`.jpg`, `.png`, `.webp`) into `sample_receipts/`. The folder ships with a README documenting privacy hygiene; real personal receipts go under `sample_receipts/private/` which is `.gitignore`d.
 
-```bash
-python -c "from pathlib import Path; from src.pipeline import _process_one; \
-  print(_process_one(Path('sample_receipts/IMG_0001.jpg'), 'openai').model_dump_json(indent=2))"
-```
+Recommended: set a hard usage cap on the OpenAI side at platform.openai.com → Settings → Limits. Per-receipt cost with `gpt-4o` is roughly $0.005-0.01.
 
-## Output
+## Output shape
 
 - **`out/<image-stem>.json`** — full Receipt object with merchant, line items, totals, category, confidence, and the `needs_human_review` flag plus a human-readable `review_reason`.
 - **`out/report.md`** — batch summary with two tables (auto-approved, needs review) and stats line at the top.
@@ -115,12 +133,14 @@ receipt-to-voucher-demo/
 ├── .env.example
 ├── requirements.txt
 ├── pyproject.toml
+├── fixtures/               # offline mock fixtures (1x1 PNG placeholders)
 ├── sample_receipts/        # drop your own; nothing real shipped
 ├── src/
 │   ├── schema.py           # Pydantic models
 │   ├── extract.py          # Vision LLM → Receipt
 │   ├── categorize.py       # Text LLM + taxonomy → category, confidence delta
 │   ├── validate.py         # deterministic checks → human-review flag
+│   ├── mock.py             # offline provider for `--llm-provider mock`
 │   └── pipeline.py         # CLI orchestrator
 ├── docs/
 │   ├── taxonomy.md
