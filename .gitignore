@@ -40,3 +40,9 @@ out/*.md
 
 # Private receipts (real personal data must never land in git)
 sample_receipts/private/
+
+# Local working notes, not part of the project
+CLAUDE.md
+AGENTS.md
+.claude/
+.codex/
